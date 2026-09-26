@@ -1,6 +1,6 @@
 # Proposta de evolução
 
-Proposta escolhida: aposentar aos poucos o código atual do **tracker de leitura** (o que controla se um tópico ou fórum está "não lido") usando **Branch by Abstraction** com **execução paralela**.
+Proposta escolhida: aposentar aos poucos o código atual do tracker de leitura (o que controla se um tópico ou fórum está "não lido") usando Branch by Abstraction com execução paralela.
 
 ## Motivação
 
@@ -39,12 +39,12 @@ graph LR
 
 ## Plano de migração incremental
 
-1. **Escrever testes de caracterização do tracker.** Criar testes pro comportamento atual de `topic_is_unread`, `forum_is_unread`, `tracker_needs_update` e dos dois `update_read`, incluindo as bordas (`TRACKER_LENGTH` = 0, tópico mais velho que a data de corte, fórum marcado como lido). O código de produção não muda nada. Verificação: a suíte passa e a cobertura dessas funções sobe; o relógio é controlado com mock, igual fiz na Parte 1.
-2. **Criar a interface `ReadTracker` e o `LegacyReadTracker`.** O legacy só repassa as chamadas pro código atual. Ninguém usa a interface ainda, então o sistema continua funcionando igual. Verificação: os testes de contrato rodam no `LegacyReadTracker` e dão o mesmo resultado dos testes de caracterização.
-3. **Trocar os chamadores pra usar a interface, um de cada vez.** Primeiro os filtros do Jinja no `app.py`, depois a view do tópico (`views.py:227`) e depois o `Topic.first_unread`, cada um num commit. A implementação configurada continua sendo a legacy, então o resultado pro usuário é o mesmo. Verificação: suíte completa depois de cada troca e um teste de view com o `client` do Flask abrindo um tópico e conferindo a marcação de não lido.
-4. **Criar o `DefaultReadTracker` e rodar em paralelo.** Implementar a regra nova, com uma data de corte só e o relógio injetado. Ligar `READ_TRACKER = parallel` num ambiente de teste: o `ParallelReadTracker` devolve sempre o resultado do legacy (então o usuário não vê diferença) e loga toda vez que o novo discorda. Verificação: os testes de contrato passam nas duas implementações e o log de divergências fica vazio depois de um tempo de uso.
-5. **Virar a chave pro novo.** Trocar o padrão pra `READ_TRACKER = default`. O legacy continua no código por uma versão, e se aparecer problema é só voltar a configuração pra `legacy`, sem precisar de deploy de código. Verificação: suíte completa, testes de contrato e acompanhar se aparecem reclamações ou erros no log.
-6. **Remover o código antigo.** Apagar o `LegacyReadTracker`, o `ParallelReadTracker`, a lógica duplicada do `utils/helpers.py` e os métodos do tracker que sobraram no `Topic` e no `Forum`. As funções `topic_is_unread` e `forum_is_unread` podem ficar como uma chamada simples pro tracker novo, pra não quebrar plugins. Verificação: suíte completa e um `grep` confirmando que ninguém mais chama o código antigo.
+1. Escrever testes de caracterização do tracker. Criar testes pro comportamento atual de `topic_is_unread`, `forum_is_unread`, `tracker_needs_update` e dos dois `update_read`, incluindo as bordas (`TRACKER_LENGTH` = 0, tópico mais velho que a data de corte, fórum marcado como lido). O código de produção não muda nada. Verificação: a suíte passa e a cobertura dessas funções sobe; o relógio é controlado com mock, igual fiz na Parte 1.
+2. Criar a interface `ReadTracker` e o `LegacyReadTracker`. O legacy só repassa as chamadas pro código atual. Ninguém usa a interface ainda, então o sistema continua funcionando igual. Verificação: os testes de contrato rodam no `LegacyReadTracker` e dão o mesmo resultado dos testes de caracterização.
+3. Trocar os chamadores pra usar a interface, um de cada vez. Primeiro os filtros do Jinja no `app.py`, depois a view do tópico (`views.py:227`) e depois o `Topic.first_unread`, cada um num commit. A implementação configurada continua sendo a legacy, então o resultado pro usuário é o mesmo. Verificação: suíte completa depois de cada troca e um teste de view com o `client` do Flask abrindo um tópico e conferindo a marcação de não lido.
+4. Criar o `DefaultReadTracker` e rodar em paralelo. Implementar a regra nova, com uma data de corte só e o relógio injetado. Ligar `READ_TRACKER = parallel` num ambiente de teste: o `ParallelReadTracker` devolve sempre o resultado do legacy (então o usuário não vê diferença) e loga toda vez que o novo discorda. Verificação: os testes de contrato passam nas duas implementações e o log de divergências fica vazio depois de um tempo de uso.
+5. Virar a chave pro novo. Trocar o padrão pra `READ_TRACKER = default`. O legacy continua no código por uma versão, e se aparecer problema é só voltar a configuração pra `legacy`, sem precisar de deploy de código. Verificação: suíte completa, testes de contrato e acompanhar se aparecem reclamações ou erros no log.
+6. Remover o código antigo. Apagar o `LegacyReadTracker`, o `ParallelReadTracker`, a lógica duplicada do `utils/helpers.py` e os métodos do tracker que sobraram no `Topic` e no `Forum`. As funções `topic_is_unread` e `forum_is_unread` podem ficar como uma chamada simples pro tracker novo, pra não quebrar plugins. Verificação: suíte completa e um `grep` confirmando que ninguém mais chama o código antigo.
 
 ## Riscos e mitigação
 
